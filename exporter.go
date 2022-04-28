@@ -3,7 +3,6 @@ package httpExporter
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -116,7 +115,11 @@ func (e *Exporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpa
 	body, err := json.Marshal(&httpSpans)
 
 	if err != nil {
-		return errors.New("unable to serialize span data")
+		return e.errf("unable to serialize span data")
+	}
+
+	if body == nil{
+		return e.errf("empty span data")
 	}
 
 	e.logf("about to send a POST request to %s with body %s", e.url, body)
@@ -136,9 +139,10 @@ func (e *Exporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpa
 		return e.errf("failed to read response body: %v", err)
 	}
 
-	if resp.StatusCode != http.StatusAccepted {
+	if resp.StatusCode < 200 && resp.StatusCode > 300{
 		return e.errf("failed to send spans to server with status %d", resp.StatusCode)
 	}
+	e.logf("Spans sent with response code %d", resp.StatusCode)
 
 	return nil
 }
